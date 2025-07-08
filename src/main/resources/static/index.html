@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Chat Application</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div id="chat-container">
+    <h2>Simple Chat Room</h2>
+    <div id="chat-box"></div>
+    <input id="message-input" type="text" placeholder="Type your message here...">
+    <button id="send-button">Send</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+<script>
+    const roomId = 'general';  // Example room ID
+    const username = 'guest';  // Example username
+    const socket = new SockJS('/ws');
+    const stompClient = Stomp.over(socket);
+
+    stompClient.connect({}, function(frame) {
+        console.log('Connected:', frame);
+        stompClient.subscribe('/topic/room/' + roomId, function(messageOutput) {
+            showMessage(JSON.parse(messageOutput.body));
+        });
+
+        stompClient.send('/app/chat.joinRoom/' + roomId, {}, JSON.stringify({
+            sender: username,
+            type: 'JOIN'
+        }));
+    });
+
+    document.getElementById('send-button').addEventListener('click', function() {
+        const messageInput = document.getElementById('message-input');
+        const messageContent = messageInput.value.trim();
+
+        if (messageContent && stompClient) {
+            const chatMessage = {
+                sender: username,
+                content: messageContent,
+                type: 'CHAT'
+            };
+
+            stompClient.send('/app/chat.sendMessage/' + roomId, {}, JSON.stringify(chatMessage));
+            messageInput.value = '';
+        }
+    });
+
+    function showMessage(message) {
+        const chatBox = document.getElementById('chat-box');
+        const messageElement = document.createElement('div');
+
+        messageElement.className = 'message ' + (message.type === 'CHAT' ? (message.sender === username ? 'user' : 'other') : 'system');
+        messageElement.innerHTML = `<strong>${message.sender}:</strong> ${message.content}`;
+        chatBox.appendChild(messageElement);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+</script>
+
+</body>
+</html>
